@@ -59,14 +59,14 @@ def str2path(xfp, s):
 @click.command()
 @click.argument('out_psbt', type=click.File('wb'), metavar="OUTPUT.PSBT")
 @click.argument('xpub', type=str)
-@click.option('--testnet', '-t', help="Assume testnet3 addresses (default mainet)", is_flag=True, default=False)
-@click.option('--segwit', '-s', help="Make ins/outs be segwit style", is_flag=True, default=False)
 @click.option('--num-outs', '-n', help="Number of outputs (default 1)", default=1)
 @click.option('--num-change', '-c', help="Number of change outputs (default 1)", default=1)
 @click.option('--value', '-v', help="Total BTC value of inputs (integer, default 3)", default=3)
 @click.option('--fee', '-f', help="Miner's fee in Satoshis", default=1000)
+@click.option('--segwit', '-s', help="Make ins/outs be segwit style", is_flag=True, default=False)
 @click.option('--styles', '-a',  help="Output address style (multiple ok)", multiple=True, default=None, type=click.Choice(ADDR_STYLES))
 @click.option('--base64', '-6', help="Output base64 (default binary)", is_flag=True, default=False)
+@click.option('--testnet', '-t', help="Assume testnet3 addresses (default mainnet)", is_flag=True, default=False)
 def faker(num_change, num_outs, out_psbt, value, testnet, xpub, segwit, fee, styles, base64):
     '''Construct a valid PSBT which spends non-existant BTC to random addresses!'''
 
