@@ -26,10 +26,10 @@ from pycoin.key.BIP32Node import BIP32Node
 from pycoin.convention import tx_fee
 import urllib.request
 
+from txn import *
+
 b2a_hex = lambda a: str(_b2a_hex(a), 'ascii')
 #xfp2hex = lambda a: b2a_hex(a[::-1]).upper()
-
-TESTNET = False
 
 def str2ipath(s):
     # convert text to numeric path for BIP174
@@ -56,122 +56,43 @@ def str2path(xfp, s):
     p = list(str2ipath(s))
     return struct.pack('<%dI' % (1 + len(p)), xfp, *p)
 
-def calc_pubkey(xpubs, path):
-    # given a map of paths to xpubs, and a single path, calculate the pubkey
-    assert path[0:2] == 'm/'
-
-    hard_prefix = '/'.join(s for s in path.split('/') if s[-1] == "'")
-    hard_depth = hard_prefix.count('/') + 1
-
-    want = ('m/'+hard_prefix) if hard_prefix else 'm'
-    assert want in xpubs, f"Need: {want} to build pubkey of {path}"
-
-    node = BIP32Node.from_hwif(xpubs[want])
-    parts = [s for s in path.split('/') if s != 'm'][hard_depth:]
-
-    # node = node.subkey_for_path(path[2:])
-    if not parts:
-        assert want == path
-    else:
-        for sk in parts:
-            node = node.subkey_for_path(sk)
-
-    return node.sec()
-    
-
 @click.command()
-@click.argument('out_psbt', type=click.File('wb'))
-@click.argument('payout_addresses', type=str, nargs='*')
-@click.option('--testnet', '-t', help="Assume testnet3 addresses", is_flag=True, default=False)
-@click.option('--xpub', help="Provide XPUB value", default=None)
-@click.option('--num-change', '-c', help="Number of change outputs", default=1)
-@click.option('--xfp', '--fingerprint', help="Provide XFP value, otherwise discovered from xpub", default=None)
-def faker(num_change, payout_addresses, out_psbt, testnet, xfp=None, xpub=None):
+@click.argument('out_psbt', type=click.File('wb'), metavar="OUTPUT.PSBT")
+@click.argument('xpub', type=str)
+@click.option('--testnet', '-t', help="Assume testnet3 addresses (default mainet)", is_flag=True, default=False)
+@click.option('--segwit', '-s', help="Make ins/outs be segwit style", is_flag=True, default=False)
+@click.option('--num-outs', '-n', help="Number of outputs (default 1)", default=1)
+@click.option('--num-change', '-c', help="Number of change outputs (default 1)", default=1)
+@click.option('--value', '-v', help="Total BTC value of inputs (integer, default 3)", default=3)
+@click.option('--fee', '-f', help="Miner's fee in Satoshis", default=1000)
+@click.option('--styles', '-a',  help="Output address style (multiple ok)", multiple=True, default=None, type=click.Choice(ADDR_STYLES))
+@click.option('--base64', '-6', help="Output base64 (default binary)", is_flag=True, default=False)
+def faker(num_change, num_outs, out_psbt, value, testnet, xpub, segwit, fee, styles, base64):
+    '''Construct a valid PSBT which spends non-existant BTC to random addresses!'''
 
-    global TESTNET
-    TESTNET = testnet
+    num_ins = int(value)
+    total_outs = num_outs + num_change
 
-    ''' Match lines like:
-            m/0'/0'/0' => n3ieqYKgVR8oB2zsHVX1Pr7Zc31pP3C7ZJ
-            m/0/2 => mh7finD8ctq159hbRzAeevSuFBJ1NQjoH2
-        and also 
-            m => tpubD6NzVbkrYhZ4XzL5Dhayo67Gorv1YMS7j8pRUvVMd5odC2LBPLAygka9p7748JtSq82FNGPppFEz5xxZUdasBRCqJqXvUHq6xpnsMcYJzeh
-    '''
+    chg_style = 'p2pkh' if not segwit else 'p2wpkh'
 
-    psbt = BasicPSBT()
+    if not styles:
+        styles = [chg_style]
 
-    for path, addr in addrs:
-        print(f"addr: {addr} ... ", end='')
-
-        rr = explora('address', addr, 'utxo')
-
-        if not rr:
-            print('nada')
-            continue
-
-        here = 0
-        for u in rr:
-            here += u['value']
-
-            tt = TxIn(h2b_rev(u['txid']), u['vout'])
-            spending.append(tt)
-            #print(rr)
-
-            pin = BasicPSBTInput(idx=len(psbt.inputs))
-            psbt.inputs.append(pin)
-
-            pubkey = calc_pubkey(xpubs, path)
-
-            pin.bip32_paths[pubkey] = str2path(xfp, path)
-
-            # fetch the UTXO for witness signging
-            td = explora('tx', u['txid'], 'hex', is_json=False)
-            outpt = Tx.from_hex(td.decode('ascii')).txs_out[u['vout']]
-
-            with BytesIO() as b:
-                outpt.stream(b)
-                pin.witness_utxo = b.getvalue()
+    psbt, outs = fake_txn(num_ins, total_outs, master_xpub=xpub, fee=fee,
+                    segwit_in=segwit, outstyles=styles, change_style=chg_style,
+                    is_testnet=testnet, change_outputs=list(range(num_outs, num_outs+num_change)))
 
 
-        print('%.8f BTC' % (here / 1E8))
-        total += here
+    out_psbt.write(psbt if not base64 else b64encode(psbt))
 
-        if len(spending) > 15:
-            print("Reached practical limit on # of inputs. "
-                    "You'll need to repeat this process again later.")
-            break
+    print(f"\nFake PSBT would send {num_ins} BTC to: ")
+    print('\n'.join(" %.8f => %s %s" % (amt,dest, ' (change back)' if chg else '') for amt,dest,chg in outs))
+    if fee:
+        print(" %.8f => miners fee" % (Decimal(fee)/Decimal(1E8)))
 
-    assert total
-
-    print("Found total: %.8f BTC" % (total / 1E8))
-
-    print("Planning to send to: %s" % payout_address)
-
-    dest_scr = standard_tx_out_script(payout_address)
-
-    txn = Tx(2,spending,[TxOut(total, dest_scr)])
-
-    fee = tx_fee.recommended_fee_for_tx(txn)
-
-    # placeholder, single output that isn't change
-    pout = BasicPSBTOutput(idx=0)
-    psbt.outputs.append(pout)
-
-    print("Guestimate fee: %.8f BTC" % (fee / 1E8))
-
-    txn.txs_out[0].coin_value -= fee
-
-    # write txn into PSBT
-    with BytesIO() as b:
-        txn.stream(b)
-        psbt.txn = b.getvalue()
-
-    out_psbt.write(psbt.as_bytes())
-
-    print("PSBT to be signed:\n\n\t" + out_psbt.name, end='\n\n')
-    
+    #print("\nPSBT to be signed: " + out_psbt.name, end='\n\n')
 
 if __name__ == '__main__':
-    recovery()
+    faker()
 
 # EOF
