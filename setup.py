@@ -4,19 +4,38 @@
 #
 #   pip install --editable .
 
-from setuptools import setup
+from setuptools import setup, find_packages
 
-setup(
-    name='psbt_faker',
-    version='1.0',
-    py_modules=[],
-    python_requires='>3.6.0',
-    install_requires=[
-        'Click',
-    ],
-    entry_points='''
-        [console_scripts]
-        psbt_faker=main:faker
-    ''',
-)
+VERSION = '1.0'
+
+with open('README.md', 'rt') as fd:
+    desc = fd.read()
+
+if __name__ == '__main__':
+    setup(
+        name='psbt_faker',
+        author='Coinkite Inc.',
+        author_email='support@coinkite.com',
+        description="Constructs a valid PSBT files which spend non-existant BTC to random addresses",
+        version=VERSION,
+        packages=find_packages(),
+        long_description=desc,
+        long_description_content_type="text/markdown",
+        url="https://github.com/Coldcard/psbt_faker",
+        py_modules=[],
+        python_requires='>3.6.0',
+        install_requires=[
+            'Click',
+            'pycoin==0.80',
+        ],
+        entry_points='''
+            [console_scripts]
+            psbt_faker=main:faker
+        ''',
+        classifiers=[
+            "Programming Language :: Python :: 3",
+            "License :: OSI Approved :: MIT License",
+            "Operating System :: OS Independent",
+        ]
+    )
 
