@@ -8,7 +8,6 @@
 #
 #
 import click, sys, os, pdb, struct, io, json, re, time
-from psbt import BasicPSBT, BasicPSBTInput, BasicPSBTOutput
 from pprint import pformat, pprint
 from binascii import b2a_hex as _b2a_hex
 from binascii import a2b_hex
@@ -26,7 +25,7 @@ from pycoin.key.BIP32Node import BIP32Node
 from pycoin.convention import tx_fee
 import urllib.request
 
-from txn import *
+from .txn import *
 
 b2a_hex = lambda a: str(_b2a_hex(a), 'ascii')
 #xfp2hex = lambda a: b2a_hex(a[::-1]).upper()

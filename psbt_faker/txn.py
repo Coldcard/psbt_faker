@@ -3,11 +3,11 @@
 #
 import time, os, random
 from binascii import b2a_hex, a2b_hex
-from psbt import BasicPSBT, BasicPSBTInput, BasicPSBTOutput, PSBT_IN_REDEEM_SCRIPT
 from io import BytesIO
 from pprint import pprint, pformat
 from decimal import Decimal
 from pycoin.key.BIP32Node import BIP32Node
+from .psbt import BasicPSBT, BasicPSBTInput, BasicPSBTOutput, PSBT_IN_REDEEM_SCRIPT
 
 # all possible addr types, including multisig/scripts
 ADDR_STYLES = ['p2wpkh', 'p2wsh', 'p2sh', 'p2pkh', 'p2wsh-p2sh', 'p2wpkh-p2sh']
