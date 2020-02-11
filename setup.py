@@ -6,7 +6,7 @@
 
 from setuptools import setup, find_packages
 
-VERSION = '1.0'
+VERSION = '1.1'
 
 with open('README.md', 'rt') as fd:
     desc = fd.read()
@@ -22,7 +22,7 @@ if __name__ == '__main__':
         long_description=desc,
         long_description_content_type="text/markdown",
         url="https://github.com/Coldcard/psbt_faker",
-        py_modules=[],
+        py_modules=['psbt_faker'],
         python_requires='>3.6.0',
         install_requires=[
             'Click',
@@ -30,7 +30,7 @@ if __name__ == '__main__':
         ],
         entry_points='''
             [console_scripts]
-            psbt_faker=main:faker
+            psbt_faker=psbt_faker:faker
         ''',
         classifiers=[
             "Programming Language :: Python :: 3",
