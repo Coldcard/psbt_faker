@@ -30,6 +30,8 @@ from .txn import *
 b2a_hex = lambda a: str(_b2a_hex(a), 'ascii')
 #xfp2hex = lambda a: b2a_hex(a[::-1]).upper()
 
+SIM_XPUB = 'tpubD6NzVbkrYhZ4XzL5Dhayo67Gorv1YMS7j8pRUvVMd5odC2LBPLAygka9p7748JtSq82FNGPppFEz5xxZUdasBRCqJqXvUHq6xpnsMcYJzeh'
+
 def str2ipath(s):
     # convert text to numeric path for BIP174
     for i in s.split('/'):
@@ -57,7 +59,7 @@ def str2path(xfp, s):
 
 @click.command()
 @click.argument('out_psbt', type=click.File('wb'), metavar="OUTPUT.PSBT")
-@click.argument('xpub', type=str)
+@click.argument('xpub', type=str, default=SIM_XPUB)
 @click.option('--num-outs', '-n', help="Number of outputs (default 1)", default=1)
 @click.option('--num-change', '-c', help="Number of change outputs (default 1)", default=1)
 @click.option('--value', '-v', help="Total BTC value of inputs (integer, default 3)", default=3)
@@ -66,7 +68,8 @@ def str2path(xfp, s):
 @click.option('--styles', '-a',  help="Output address style (multiple ok)", multiple=True, default=None, type=click.Choice(ADDR_STYLES))
 @click.option('--base64', '-6', help="Output base64 (default binary)", is_flag=True, default=False)
 @click.option('--testnet', '-t', help="Assume testnet3 addresses (default mainnet)", is_flag=True, default=False)
-def faker(num_change, num_outs, out_psbt, value, testnet, xpub, segwit, fee, styles, base64):
+@click.option('--partial', '-p', help="Change first input so its different XPUB and result cannot be finalized", is_flag=True, default=False)
+def faker(num_change, num_outs, out_psbt, value, testnet, xpub, segwit, fee, styles, base64, partial):
     '''Construct a valid PSBT which spends non-existant BTC to random addresses!'''
 
     num_ins = int(value)
@@ -79,6 +82,7 @@ def faker(num_change, num_outs, out_psbt, value, testnet, xpub, segwit, fee, sty
 
     psbt, outs = fake_txn(num_ins, total_outs, master_xpub=xpub, fee=fee,
                     segwit_in=segwit, outstyles=styles, change_style=chg_style,
+                    partial=partial,
                     is_testnet=testnet, change_outputs=list(range(num_outs, num_outs+num_change)))
 
 

@@ -27,14 +27,15 @@ Usage: psbt_faker [OPTIONS] OUTPUT.PSBT XPUB
 Options:
   -n, --num-outs INTEGER          Number of outputs (default 1)
   -c, --num-change INTEGER        Number of change outputs (default 1)
-  -v, --value INTEGER             Total BTC value of inputs (integer, default
-                                  3)
+  -v, --value INTEGER             Total BTC value of inputs (integer, default 3)
   -f, --fee INTEGER               Miner's fee in Satoshis
   -s, --segwit                    Make ins/outs be segwit style
   -a, --styles [p2wpkh|p2wsh|p2sh|p2pkh|p2wsh-p2sh|p2wpkh-p2sh]
                                   Output address style (multiple ok)
   -6, --base64                    Output base64 (default binary)
   -t, --testnet                   Assume testnet3 addresses (default mainnet)
+  -p, --partial                   Change first input so its different XPUB and
+                                  result cannot be finalized
   --help                          Show this message and exit.
 ```
 
@@ -99,6 +100,5 @@ Fake PSBT would send 3 BTC to:
  0.27272636 => 1ABmPHMdqK4MqF9BkACv8PHHYL7McmbYAq 
  0.27272636 => 15mkVohf2A1g9nVo9tn2KtN2f4eBHQCche  (change back)
  0.00001000 => miners fee
-
 
 ```

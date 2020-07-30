@@ -72,7 +72,7 @@ def make_change_addr(wallet, style):
 
 def fake_txn(num_ins, num_outs, master_xpub=None, subpath="0/%d", fee=10000,
                 outvals=None, segwit_in=False, outstyles=['p2pkh'], is_testnet=False,
-                change_style='p2pkh',
+                change_style='p2pkh', partial=False,
                 change_outputs=[]):
 
     # make various size txn's ... completely fake and pointless values
@@ -106,7 +106,10 @@ def fake_txn(num_ins, num_outs, master_xpub=None, subpath="0/%d", fee=10000,
         assert len(sec) == 33, "expect compressed"
         assert subpath[0:2] == '0/'
 
-        psbt.inputs[i].bip32_paths[sec] = xfp + pack('<II', 0, i)
+        if partial and (i == 0):
+            psbt.inputs[i].bip32_paths[sec] = b'Nope' + pack('<II', 0, i)
+        else:
+            psbt.inputs[i].bip32_paths[sec] = xfp + pack('<II', 0, i)
 
         # UTXO that provides the funding for to-be-signed txn
         supply = Tx(2,[TxIn(pack('4Q', 0xdead, 0xbeef, 0, 0), 73)],[])
