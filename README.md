@@ -18,7 +18,7 @@ For the Coldcard Simulator, you could use:
 ```
 # python3 -m pip install --editable .
 # rehash
-# pbst_faker --help
+# psbt_faker --help
 
 Usage: psbt_faker [OPTIONS] OUTPUT.PSBT XPUB
 
