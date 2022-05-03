@@ -20,22 +20,25 @@ For the Coldcard Simulator, you could use:
 # rehash
 # pbst_faker --help
 
-Usage: psbt_faker [OPTIONS] OUTPUT.PSBT XPUB
+Usage: psbt_faker [OPTIONS] OUTPUT.PSBT [XPUB]
 
   Construct a valid PSBT which spends non-existant BTC to random addresses!
 
 Options:
   -n, --num-outs INTEGER          Number of outputs (default 1)
   -c, --num-change INTEGER        Number of change outputs (default 1)
-  -v, --value INTEGER             Total BTC value of inputs (integer, default 3)
+  -v, --value INTEGER             Total BTC value of inputs (integer, default
+                                  3)
   -f, --fee INTEGER               Miner's fee in Satoshis
   -s, --segwit                    Make ins/outs be segwit style
-  -a, --styles [p2wpkh|p2wsh|p2sh|p2pkh|p2wsh-p2sh|p2wpkh-p2sh]
+  -a, --styles [p2wpkh|p2wsh|p2sh|p2pkh|p2wsh-p2sh|p2wpkh-p2sh|p2tr]
                                   Output address style (multiple ok)
   -6, --base64                    Output base64 (default binary)
   -t, --testnet                   Assume testnet3 addresses (default mainnet)
   -p, --partial                   Change first input so its different XPUB and
                                   result cannot be finalized
+  -z, --zero-xfp                  Provide zero XFP and junk XPUB (cannot be
+                                  signed, but should be decodable)
   --help                          Show this message and exit.
 ```
 

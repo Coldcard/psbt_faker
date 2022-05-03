@@ -20,7 +20,6 @@ from pycoin.tx.TxIn import TxIn
 from pycoin.ui import standard_tx_out_script
 from pycoin.encoding import b2a_hashed_base58, hash160
 from pycoin.serialize import b2h_rev, b2h, h2b, h2b_rev
-from pycoin.contrib.segwit_addr import encode as bech32_encode
 from pycoin.key.BIP32Node import BIP32Node
 from pycoin.convention import tx_fee
 import urllib.request
@@ -69,11 +68,15 @@ def str2path(xfp, s):
 @click.option('--base64', '-6', help="Output base64 (default binary)", is_flag=True, default=False)
 @click.option('--testnet', '-t', help="Assume testnet3 addresses (default mainnet)", is_flag=True, default=False)
 @click.option('--partial', '-p', help="Change first input so its different XPUB and result cannot be finalized", is_flag=True, default=False)
-def faker(num_change, num_outs, out_psbt, value, testnet, xpub, segwit, fee, styles, base64, partial):
+@click.option('--zero-xfp', '-z', help="Provide zero XFP and junk XPUB (cannot be signed, but should be decodable)", is_flag=True, default=False)
+def faker(num_change, num_outs, out_psbt, value, testnet, xpub, segwit, fee, styles, base64, partial, zero_xfp):
     '''Construct a valid PSBT which spends non-existant BTC to random addresses!'''
 
     num_ins = int(value)
     total_outs = num_outs + num_change
+
+    if zero_xfp:
+        xpub = None
 
     chg_style = 'p2pkh' if not segwit else 'p2wpkh'
 
