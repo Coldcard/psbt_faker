@@ -20,7 +20,7 @@ def prandom(count):
     return bytes(random.randint(0, 255) for i in range(count))
 
 def fake_dest_addr(style='p2pkh'):
-    # Make a plausible output address, but it’s random garbage. Cant use for change outs
+    # Make a plausible output address, but it's random garbage. Cant use for change outs
 
     # See CTxOut.get_address() in ../shared/serializations
 
@@ -78,8 +78,8 @@ def fake_txn(num_ins, num_outs, master_xpub=None, subpath="0/%d", fee=10000,
                 change_style='p2pkh', partial=False,
                 change_outputs=[]):
 
-    # make various size txn’s ... completely fake and pointless values
-    # - but has UTXO’s to match needs
+    # make various size txn's ... completely fake and pointless values
+    # - but has UTXO's to match needs
     # - input total = num_inputs * 1BTC
     from pycoin.tx.Tx import Tx
     from pycoin.tx.TxIn import TxIn

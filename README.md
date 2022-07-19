@@ -2,7 +2,7 @@
 
 A simple program to create test PSBT files, that are plausible and
 self-consistent so that PSBT-signing tools will actually sign them.
-Does not involve any blockchains… completely made up inputs and
+Does not involve any blockchains... completely made up inputs and 
 output addresses are chosen at random.
 
 You should use the XPUB of the Coldcard you want experiment against.
@@ -35,7 +35,7 @@ Options:
   -c, --num-change INTEGER        Number of change outputs (default 1)
   -v, --value INTEGER             Total BTC value of inputs (integer, default
                                   3)
-  -f, --fee INTEGER               Miner’s fee in Satoshis
+  -f, --fee INTEGER               Miner's fee in Satoshis
   -s, --segwit                    Make ins/outs be segwit style
   -a, --styles [p2wpkh|p2wsh|p2sh|p2pkh|p2wsh-p2sh|p2wpkh-p2sh|p2tr]
                                   Output address style (multiple ok)
