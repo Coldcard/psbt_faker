@@ -47,8 +47,8 @@ def str2ipath(s):
         yield here
 
 def xfp2str(xfp):
-    # Standardized way to show an xpub's fingerprint... it's a 4-byte string
-    # and not really an integer. Used to show as '0x%08x' but that's wrong endian.
+    # Standardized way to show an xpub’s fingerprint... it’s a 4-byte string
+    # and not really an integer. Used to show as '0x%08x' but that’s wrong endian.
     return b2a_hex(struct.pack('>I', xfp)).upper()
 
 def str2path(xfp, s):
@@ -62,7 +62,7 @@ def str2path(xfp, s):
 @click.option('--num-outs', '-n', help="Number of outputs (default 1)", default=1)
 @click.option('--num-change', '-c', help="Number of change outputs (default 1)", default=1)
 @click.option('--value', '-v', help="Total BTC value of inputs (integer, default 3)", default=3)
-@click.option('--fee', '-f', help="Miner's fee in Satoshis", default=1000)
+@click.option('--fee', '-f', help="Miner’s fee in Satoshis", default=1000)
 @click.option('--segwit', '-s', help="Make ins/outs be segwit style", is_flag=True, default=False)
 @click.option('--styles', '-a',  help="Output address style (multiple ok)", multiple=True, default=None, type=click.Choice(ADDR_STYLES))
 @click.option('--base64', '-6', help="Output base64 (default binary)", is_flag=True, default=False)

@@ -2,23 +2,29 @@
 
 A simple program to create test PSBT files, that are plausible and
 self-consistent so that PSBT-signing tools will actually sign them.
-Does not involve any blockchains... completely made up inputs and 
+Does not involve any blockchains… completely made up inputs and
 output addresses are chosen at random.
 
 You should use the XPUB of the Coldcard you want experiment against.
-This can be retreived using `ckcc xpub` with the `ckcc-protocol`
+This can be retrieved using `ckcc xpub` with the `ckcc-protocol`
 CLI tool, or by exporting the wallet (see Advanced > MicroSD > Export Wallet menu).
 
-For the Coldcard Simulator, you could use:
+For the Coldcard Simulator, you could use `tpubD6NzVbkrYhZ4XzL5Dhayo67Gorv1YMS7j8pRUvVMd5odC2LBPLAygka9p7748JtSq82FNGPppFEz5xxZUdasBRCqJqXvUHq6xpnsMcYJzeh`
 
-    tpubD6NzVbkrYhZ4XzL5Dhayo67Gorv1YMS7j8pRUvVMd5odC2LBPLAygka9p7748JtSq82FNGPppFEz5xxZUdasBRCqJqXvUHq6xpnsMcYJzeh
+## Installation
+
+```sh
+git clone https://github.com/Coldcard/psbt_faker.git
+cd psbt_faker
+python3 -m pip install -U pip setuptools
+python3 -m pip install --editable .
+rehash
+```
 
 ## Usage
 
-```
-# python3 -m pip install --editable .
-# rehash
-# psbt_faker --help
+```sh
+$ psbt_faker --help
 
 Usage: psbt_faker [OPTIONS] OUTPUT.PSBT [XPUB]
 
@@ -29,7 +35,7 @@ Options:
   -c, --num-change INTEGER        Number of change outputs (default 1)
   -v, --value INTEGER             Total BTC value of inputs (integer, default
                                   3)
-  -f, --fee INTEGER               Miner's fee in Satoshis
+  -f, --fee INTEGER               Miner’s fee in Satoshis
   -s, --segwit                    Make ins/outs be segwit style
   -a, --styles [p2wpkh|p2wsh|p2sh|p2pkh|p2wsh-p2sh|p2wpkh-p2sh|p2tr]
                                   Output address style (multiple ok)
@@ -44,7 +50,7 @@ Options:
 
 ## Examples
 
-```
+```sh
 $ export XPUB=tpubD6NzVbkrYhZ4Xp6tGusznF6KMdYHy1JSCdDk3XVLDuAA7EgJKghA5J1FP4pDXb4sCypJjAYPB4uTTXkVo2iWzK8BsMaccXTNyShDx3gxagi
 
 $ psbt_faker foo.psbt $XPUB -s -a p2wsh --fee 15000000 -c 0
@@ -103,5 +109,4 @@ Fake PSBT would send 3 BTC to:
  0.27272636 => 1ABmPHMdqK4MqF9BkACv8PHHYL7McmbYAq 
  0.27272636 => 15mkVohf2A1g9nVo9tn2KtN2f4eBHQCche  (change back)
  0.00001000 => miners fee
-
 ```
