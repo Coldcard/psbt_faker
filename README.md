@@ -24,6 +24,7 @@ rehash
 ## Usage
 
 ```sh
+!!
 $ psbt_faker --help
 
 Usage: psbt_faker [OPTIONS] OUTPUT.PSBT [XPUB]

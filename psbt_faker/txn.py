@@ -326,6 +326,7 @@ def fake_ms_txn(num_ins, num_outs, M, keys, fee=10000, outvals=None, segwit_in=T
         spendable = CTxIn(COutPoint(supply.sha256, 0), nSequence=seq)
         txn.vin.append(spendable)
 
+    outputs = []
     for i in range(num_outs):
         if not outstyles:
             style = ADDR_STYLES_MULTI[i % len(ADDR_STYLES_MULTI)]
@@ -367,12 +368,15 @@ def fake_ms_txn(num_ins, num_outs, M, keys, fee=10000, outvals=None, segwit_in=T
 
         txn.vout.append(h)
 
+        # TODO FIXME #
+        #XXX#outputs.append( (Decimal(h.nValue)/Decimal(1E8), scr, (i not in change_outputs)) )
+
     psbt.txn = txn.serialize_with_witness()
 
     rv = BytesIO()
     psbt.serialize(rv)
 
-    return rv.getvalue()
+    return rv.getvalue(), [(n, render_address(s, testnet), ic) for n,s,ic in outputs]
 
 def render_address(script, testnet=True):
     # take a scriptPubKey (part of the TxOut) and convert into conventional human-readable
