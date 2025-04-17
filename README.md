@@ -26,7 +26,6 @@ rehash
 ```sh
 !!
 $ psbt_faker --help
-
 Usage: psbt_faker [OPTIONS] OUTPUT.PSBT [XPUB]
 
   Construct a valid PSBT which spends non-existant BTC to random addresses!
@@ -46,10 +45,25 @@ Options:
                                   result cannot be finalized
   -z, --zero-xfp                  Provide zero XFP and junk XPUB (cannot be
                                   signed, but should be decodable)
+  -m, --multisig config.txt       [MS] CC Multisig config file (text)
+  -l, --locktime TEXT             [MS] nLocktime value (default current block
+                                  height)
+  -n, --input-amount INTEGER      [MS] Size of each input in sats (default
+                                  100k sats each input)
+  --legacy                        [MS] Make inputs be legacy p2sh style
   --help                          Show this message and exit.
 ```
 
+Options with `[MS]` prefix are not yet supported for single-sig.
+
 ## Examples
+
+```sh
+$ psbt_faker foo.psbt -m ms-example.txt
+Fake PSBT would send 3 BTC to: 
+...
+ 0.00001000 => miners fee
+```
 
 ```sh
 $ export XPUB=tpubD6NzVbkrYhZ4Xp6tGusznF6KMdYHy1JSCdDk3XVLDuAA7EgJKghA5J1FP4pDXb4sCypJjAYPB4uTTXkVo2iWzK8BsMaccXTNyShDx3gxagi
