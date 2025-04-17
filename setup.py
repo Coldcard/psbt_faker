@@ -6,7 +6,7 @@
 
 from setuptools import setup, find_packages
 
-VERSION = '1.3'
+VERSION = '1.4'
 
 with open('README.md', 'rt') as fd:
     desc = fd.read()
@@ -26,11 +26,11 @@ if __name__ == '__main__':
         python_requires='>3.6.0',
         install_requires=[
             'Click',
-            'pycoin==0.80',
+            'ecdsa',
         ],
         entry_points='''
             [console_scripts]
-            psbt_faker=psbt_faker:faker
+            psbt_faker=psbt_faker:main
         ''',
         classifiers=[
             "Programming Language :: Python :: 3",

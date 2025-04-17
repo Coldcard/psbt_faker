@@ -1,2 +1,3 @@
 click>=6.7
-pycoin==0.80
+ecdsa
+# or can use python-secp256k1
