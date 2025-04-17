@@ -7,56 +7,24 @@
 # That will create the command "psbt_faker" in your path... or just use "./main.py ..." here
 #
 #
-import click, sys, os, pdb, struct, io, json, re, time
-from pprint import pformat, pprint
+import click
 from binascii import b2a_hex as _b2a_hex
-from binascii import a2b_hex
-from io import BytesIO
-from collections import namedtuple
-from base64 import b64encode, b64decode
-from pycoin.tx.Tx import Tx
-from pycoin.tx.TxOut import TxOut
-from pycoin.tx.TxIn import TxIn
-from pycoin.ui import standard_tx_out_script
-from pycoin.encoding import b2a_hashed_base58, hash160
-from pycoin.serialize import b2h_rev, b2h, h2b, h2b_rev
-from pycoin.key.BIP32Node import BIP32Node
-from pycoin.convention import tx_fee
-import urllib.request
-
+from base64 import b64encode
 from .txn import *
+from .ripemd import ripemd160
+from .multisig import from_simple_text
 
 b2a_hex = lambda a: str(_b2a_hex(a), 'ascii')
 #xfp2hex = lambda a: b2a_hex(a[::-1]).upper()
 
 SIM_XPUB = 'tpubD6NzVbkrYhZ4XzL5Dhayo67Gorv1YMS7j8pRUvVMd5odC2LBPLAygka9p7748JtSq82FNGPppFEz5xxZUdasBRCqJqXvUHq6xpnsMcYJzeh'
 
-def str2ipath(s):
-    # convert text to numeric path for BIP174
-    for i in s.split('/'):
-        if i == 'm': continue
-        if not i: continue      # trailing or duplicated slashes
 
-        if i[-1] in "'ph":
-            assert len(i) >= 2, i
-            here = int(i[:-1]) | 0x80000000
-        else:
-            here = int(i)
-            assert 0 <= here < 0x80000000, here
+@click.group()
+def main():
+    pass
 
-        yield here
-
-def xfp2str(xfp):
-    # Standardized way to show an xpub's fingerprint... it's a 4-byte string
-    # and not really an integer. Used to show as '0x%08x' but that's wrong endian.
-    return b2a_hex(struct.pack('>I', xfp)).upper()
-
-def str2path(xfp, s):
-    # output binary needed for BIP-174
-    p = list(str2ipath(s))
-    return struct.pack('<%dI' % (1 + len(p)), xfp, *p)
-
-@click.command()
+@main.command()
 @click.argument('out_psbt', type=click.File('wb'), metavar="OUTPUT.PSBT")
 @click.argument('xpub', type=str, default=SIM_XPUB)
 @click.option('--num-outs', '-n', help="Number of outputs (default 1)", default=1)
@@ -98,7 +66,41 @@ def faker(num_change, num_outs, out_psbt, value, testnet, xpub, segwit, fee, sty
 
     #print("\nPSBT to be signed: " + out_psbt.name, end='\n\n')
 
+
+@main.command()
+@click.argument('ms_conf', type=click.File('r'), metavar="CC ms export")
+@click.argument('out_psbt', type=click.File('wb'), metavar="OUTPUT.PSBT")
+@click.option('--input-amount', '-n', help="Size of each input in sats (default 100k sats each input)", default=100000)
+@click.option('--num-ins', help="Number of inputs (default 1)", default=1)
+@click.option('--num-outs', help="Number of outputs (default 1)", default=1)
+@click.option('--num-change', '-c', help="Number of change outputs (default 1)", default=1)
+@click.option('--fee', '-f', help="Miner's fee in Satoshis", default=1000)
+@click.option('--locktime', '-l', help="nLocktime value (default current block height)", default=None)
+@click.option('--legacy', help="Make inputs be legacy p2sh style", is_flag=True, default=False)
+@click.option('--styles', '-a',  help="Output address style (multiple ok)", multiple=True, default=None, type=click.Choice(ADDR_STYLES))
+@click.option('--base64', '-6', help="Output base64 (default binary)", is_flag=True, default=False)
+def ms_faker(ms_conf, out_psbt, num_ins, num_change, num_outs, legacy, fee, styles, base64,
+             locktime, input_amount):
+    '''Construct a valid multisig PSBT which spends non-existant BTC to random addresses!'''
+
+    if locktime is None:
+        try:
+            import urllib.request
+            u = urllib.request.urlopen("https://mempool.space/api/blocks/tip/height")
+            locktime = int(u.read().decode())
+        except:
+            locktime = 0
+
+    ms_config = ms_conf.read()
+    name, af, keys, M, N = from_simple_text(ms_config.split("\n"))
+    psbt = fake_ms_txn(num_ins, num_outs, M, keys, fee=fee, locktime=locktime,
+                       change_outputs=list(range(num_change)), outstyles=styles,
+                       segwit_in=not legacy, input_amount=input_amount)
+
+    out_psbt.write(psbt if not base64 else b64encode(psbt))
+
+
 if __name__ == '__main__':
-    faker()
+    main()
 
 # EOF

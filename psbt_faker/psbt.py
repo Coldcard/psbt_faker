@@ -5,14 +5,8 @@
 #
 import io, struct
 from binascii import b2a_hex as _b2a_hex
-from binascii import a2b_hex as _a2b_hex
-from collections import namedtuple
-from base64 import b64encode
-from pycoin.tx.Tx import Tx
-#from pycoin.tx.TxOut import TxOut
-#from pycoin.encoding import b2a_hashed_base58, a2b_hashed_base58
-from pycoin.tx.script.check_signature import parse_signature_blob
-from binascii import b2a_hex, a2b_hex
+from .ctransaction import CTransaction
+from binascii import a2b_hex
 from base64 import b64decode
 
 b2a_hex = lambda a: str(_b2a_hex(a), 'ascii')
@@ -123,8 +117,7 @@ class BasicPSBTInput(PSBTSection):
         if rv:
             # NOTE: equality test on signatures requires parsing DER stupidness
             #       and some maybe understanding of R/S values on curve that I don't have.
-            assert all(parse_signature_blob(a.part_sigs[k]) 
-                            == parse_signature_blob(b.part_sigs[k]) for k in a.part_sigs)
+            assert all(a.part_sigs[k] == b.part_sigs[k] for k in a.part_sigs)
         return rv
 
     def parse_kv(self, kt, key, val):
@@ -235,7 +228,7 @@ class BasicPSBT:
             raw = b64decode(raw)
         assert raw[0:5] == b'psbt\xff', "bad magic"
 
-        with io.BytesIO(raw[5:]) as fd:
+        with (io.BytesIO(raw[5:]) as fd):
             
             # globals
             while 1:
@@ -252,9 +245,10 @@ class BasicPSBT:
                 if kt == PSBT_GLOBAL_UNSIGNED_TX:
                     self.txn = val
 
-                    t = Tx.parse(io.BytesIO(val))
-                    num_ins = len(t.txs_in)
-                    num_outs = len(t.txs_out)
+                    t = CTransaction()
+                    t.deserialize(io.BytesIO(val))
+                    num_ins = len(t.vin)
+                    num_outs = len(t.vout)
                 elif kt == PSBT_GLOBAL_XPUB:
                     self.xpubs[key[1:]] = val
                 else:
