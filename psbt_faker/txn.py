@@ -2,24 +2,22 @@
 # Creating fake transactions. Not simple... but only for testing purposes, so ....
 #
 import struct, random, hashlib
-from .segwit_addr import encode as bech32_encode
 from io import BytesIO
-from decimal import Decimal
+from .segwit_addr import encode as bech32_encode
 from .psbt import BasicPSBT, BasicPSBTInput, BasicPSBTOutput
 from .base58 import encode_base58_checksum
-from .ripemd import hash160
-from .helpers import str2path
+from .helpers import str2path, hash160
 from .serialize import uint256_from_str
 from .bip32 import BIP32Node
 from .ctransaction import CTransaction, CTxIn, CTxOut, COutPoint
 
 # all possible addr types, including multisig/scripts
-ADDR_STYLES = ['p2wpkh', 'p2wsh', 'p2sh', 'p2pkh', 'p2wsh-p2sh', 'p2wpkh-p2sh', 'p2tr']
-
 # single-signer
-ADDR_STYLES_SINGLE = ['p2wpkh', 'p2pkh', 'p2wpkh-p2sh']
+ADDR_STYLES_SINGLE = ['p2wpkh', 'p2pkh', 'p2wpkh-p2sh', 'p2sh-p2wpkh', 'p2tr']
 # multi-signer
 ADDR_STYLES_MULTI = ['p2wsh', 'p2sh', 'p2sh-p2wsh', 'p2wsh-p2sh']
+
+ADDR_STYLES = ADDR_STYLES_MULTI + ADDR_STYLES_SINGLE
 
 def prandom(count):
     # make some bytes, randomly, but not: deterministic
@@ -39,7 +37,7 @@ def fake_dest_addr(style='p2pkh'):
     if style == 'p2tr':
         return bytes([1, 32]) + prandom(32)
 
-    if style in ['p2sh', 'p2wsh-p2sh', 'p2wpkh-p2sh']:
+    if style in ['p2sh', 'p2wsh-p2sh', 'p2wpkh-p2sh', 'p2sh-p2wsh', 'p2sh-p2wpkh']:
         # all equally bogus P2SH outputs
         return bytes([0xa9, 0x14]) + prandom(20) + bytes([0x87])
 
@@ -50,15 +48,17 @@ def fake_dest_addr(style='p2pkh'):
 
     raise ValueError('not supported: ' + style)
 
-def make_change_addr(wallet, style):
+def make_change_addr(master_xfp, orig_der,  account_key, idx, style):
     # provide script, pubkey and xpath for a legit-looking change output
 
     redeem_scr, actual_scr = None, None
-    deriv = [12, 34, random.randint(0, 1000)]
 
-    xfp, = struct.unpack('I', wallet.fingerprint())
+    if orig_der:
+        path = str2path(master_xfp, f"{orig_der}/0/{idx}")
+    else:
+        path = str2path(master_xfp, f"0/{idx}")
 
-    dest = wallet.subkey_for_path('/'.join(str(i) for i in deriv))
+    dest = account_key.subkey_for_path(f"0/{idx}")
 
     target = dest.hash160()
     assert len(target) == 20
@@ -69,27 +69,32 @@ def make_change_addr(wallet, style):
     elif style == 'p2wpkh':
         redeem_scr = bytes([0, 20]) + target
         is_segwit = True
-    elif style == 'p2wpkh-p2sh':
+    elif style in ('p2wpkh-p2sh', 'p2sh-p2wpkh'):
         redeem_scr = bytes([0, 20]) + target
         actual_scr = bytes([0xa9, 0x14]) + hash160(redeem_scr) + bytes([0x87])
     else:
         raise ValueError('cant make fake change output of type: ' + style)
 
-    return redeem_scr, actual_scr, is_segwit, dest.sec(), struct.pack('4I', xfp, *deriv)
+    return redeem_scr, actual_scr, is_segwit, dest.sec(), path
+
 
 def fake_txn(num_ins, num_outs, master_xpub=None, subpath="0/%d", fee=10000,
-             outvals=None, segwit_in=False, outstyles=['p2pkh'], is_testnet=False,
-             change_style='p2pkh', partial=False,
-             change_outputs=[]):
-
-    # make various size txn's ... completely fake and pointless values
-    # - but has UTXO's to match needs
-    # - input total = num_inputs * 1BTC
-    from struct import pack
+         outvals=None, segwit_in=False, wrapped=False, outstyles=None,
+         change_outputs=[], op_return=None, psbt_v2=None, input_amount=1E8,
+         locktime=0, sequences=None, is_testnet=False, partial=False):
 
     psbt = BasicPSBT()
+
+    if psbt_v2:
+        psbt.version = 2
+        psbt.txn_version = 2
+        psbt.input_count = num_ins
+        psbt.output_count = num_outs
+        psbt.fallback_locktime = locktime
+
     txn = CTransaction()
     txn.nVersion = 2
+    txn.nLockTime = locktime
 
     # we have a key; use it to provide "plausible" value inputs
     if master_xpub:
@@ -97,7 +102,7 @@ def fake_txn(num_ins, num_outs, master_xpub=None, subpath="0/%d", fee=10000,
         xfp = mk.fingerprint()
     else:
         # special value for COLDCARD: zero xfp => anyone can try to sign
-        mk = BIP32Node.from_master_secret(b'1'*32)
+        mk = BIP32Node.from_master_secret(b'1' * 32)
         xfp = bytes(4)
 
     psbt.inputs = [BasicPSBTInput(idx=i) for i in range(num_ins)]
@@ -105,21 +110,46 @@ def fake_txn(num_ins, num_outs, master_xpub=None, subpath="0/%d", fee=10000,
 
     outputs = []
 
+    assert subpath[0:2] == '0/'
+
+    af = ("p2sh-p2wpkh" if wrapped else "p2wpkh") if segwit_in else "p2pkh"
+    try:
+        assert mk.privkey() is not None
+        # user provided extended private key, we can simulate proper hardened derivations
+        if af == "p2wpkh":
+            purpose = 84
+        elif af == "p2sh-p2wpkh":
+            purpose = 49
+        else:
+            purpose = 44
+
+        orig_der = f"{purpose}h/{int(is_testnet)}h/0h"
+        account_key = mk.subkey_for_path(orig_der)
+    except:
+        # we cannot proceed to hardened derivation as we only have extended pubkey
+        account_key = mk
+        orig_der = None
+
     for i in range(num_ins):
         # make a fake txn to supply each of the inputs
-        # - each input is 1BTC
-
         # addr where the fake money will be stored.
-        subkey = mk.subkey_for_path(subpath % i)
+        # always from internal address chain
+        subder = f"1/{i}"
+        subkey = account_key.subkey_for_path(subder)
         sec = subkey.sec()
         assert len(sec) == 33, "expect compressed"
-        assert subpath[0:2] == '0/'
 
         if partial and (i == 0):
-            psbt.inputs[i].bip32_paths[sec] = b'Nope' + pack('<II', 0, i)
+            psbt.inputs[i].bip32_paths[sec] = b'Nope' + struct.pack('<II', 1, i)
         else:
-            psbt.inputs[i].bip32_paths[sec] = xfp + pack('<II', 0, i)
+            if orig_der:
+                dp = str2path(xfp.hex(), f"{orig_der}/{subder}")
+            else:
+                dp = str2path(xfp.hex(), subder)
 
+            psbt.inputs[i].bip32_paths[sec] = dp
+
+        # UTXO that provides the funding for to-be-signed txn
         supply = CTransaction()
         supply.nVersion = 2
         out_point = COutPoint(
@@ -131,11 +161,15 @@ def fake_txn(num_ins, num_outs, master_xpub=None, subpath="0/%d", fee=10000,
         if segwit_in:
             # p2wpkh
             scr = bytes([0x00, 0x14]) + subkey.hash160()
+            if wrapped:
+                # p2sh-p2wpkh
+                psbt.inputs[i].redeem_script = scr
+                scr = bytes([0xa9, 0x14]) + hash160(scr) + bytes([0x87])
         else:
             # p2pkh
             scr = bytes([0x76, 0xa9, 0x14]) + subkey.hash160() + bytes([0x88, 0xac])
 
-        supply.vout.append(CTxOut(int(1E8), scr))
+        supply.vout.append(CTxOut(int(input_amount), scr))
 
         if segwit_in:
             # just utxo for segwit
@@ -146,22 +180,53 @@ def fake_txn(num_ins, num_outs, master_xpub=None, subpath="0/%d", fee=10000,
 
         supply.calc_sha256()
 
-        spendable = CTxIn(COutPoint(supply.sha256, 0), nSequence=0xffffffff)
+        seq = None
+        if sequences:
+            # custom provided properly encoded sequence numbers
+            try:
+                seq = sequences[i]
+            except: pass
+
+        if seq is None:
+            seq = 0xffffffff
+            if locktime and (i == 0):
+                # decrement one sequence to enable nLockTime enforcement
+                seq = 0xfffffffe
+
+        if psbt_v2:
+            psbt.inputs[i].previous_txid = supply.hash
+            psbt.inputs[i].prevout_idx = 0
+            psbt.inputs[i].sequence = seq
+            if locktime:
+                # no need to do this as fallback locktime is already set in globals but yolo
+                if locktime < 500000000:
+                    psbt.inputs[i].req_height_locktime = locktime
+                else:
+                    psbt.inputs[i].req_time_locktime = locktime
+
+
+        spendable = CTxIn(COutPoint(supply.sha256, 0), nSequence=seq)
         txn.vin.append(spendable)
 
     for i in range(num_outs):
-        is_change = False
-
-        # random P2PKH
         if not outstyles:
-            style = ADDR_STYLES[i % len(ADDR_STYLES)]
+            style = af
+        elif len(outstyles) == 1:
+            style = outstyles[0]
+        elif len(outstyles) == num_outs:
+            style = outstyles[i]
         else:
             style = outstyles[i % len(outstyles)]
 
         if i in change_outputs:
-            scr, act_scr, isw, pubkey, sp = make_change_addr(mk, change_style)
-            psbt.outputs[i].bip32_paths[pubkey] = sp
-            is_change = True
+            scr, act_scr, isw, pubkey, sp = make_change_addr(mk.fingerprint().hex(), orig_der,
+                                                             account_key, i, style)
+
+            if len(pubkey) == 32:  # xonly
+                psbt.outputs[i].taproot_bip32_paths[pubkey] = sp
+            else:
+                psbt.outputs[i].bip32_paths[pubkey] = sp
+
         else:
             scr = act_scr = fake_dest_addr(style)
             isw = ('w' in style)
@@ -169,22 +234,49 @@ def fake_txn(num_ins, num_outs, master_xpub=None, subpath="0/%d", fee=10000,
         assert scr
         act_scr = act_scr or scr
 
-        if isw:
-            psbt.outputs[i].witness_script = scr
-        elif style.endswith('sh'):
+        # one of these is not needed anymore in v2 as you have scriptPubkey provided by self.script
+        if "p2sh" in style:  # in ('p2sh-p2wpkh', 'p2wpkh-p2sh'):
             psbt.outputs[i].redeem_script = scr
+        elif isw:
+            psbt.outputs[i].witness_script = scr
+
+        if psbt_v2:
+            psbt.outputs[i].script = act_scr
+            psbt.outputs[i].amount = int(
+                outvals[i] if outvals else round(((input_amount * num_ins) - fee) / num_outs, 4))
 
         if not outvals:
-            h = CTxOut(int(round(((1E8*num_ins)-fee) / num_outs, 4)), act_scr)
+            h = CTxOut(int(round(((input_amount * num_ins) - fee) / num_outs, 4)), act_scr)
         else:
             h = CTxOut(int(outvals[i]), act_scr)
 
-        outputs.append((Decimal(h.nValue)/Decimal(1E8), act_scr, is_change) )
+        outputs.append((h.nValue, act_scr, (i in change_outputs)))
 
         txn.vout.append(h)
 
+    # op_return is a tuple of (amount, data)
+    if op_return:
+        for op_ret in op_return:
+            amount, data = op_ret
+            op_return_size = len(data)
+            if op_return_size < 76:
+                script = bytes([106, op_return_size]) + data
+            else:
+                script = bytes([106, 76, op_return_size]) + data
 
-    psbt.txn = txn.serialize()
+            op_ret_o = BasicPSBTOutput(idx=len(psbt.outputs))
+            if psbt_v2:
+                op_ret_o.script = script
+                op_ret_o.amount = amount
+                psbt.output_count += 1
+            else:
+                op_return_out = CTxOut(amount, script)
+                txn.vout.append(op_return_out)
+
+            psbt.outputs.append(op_ret_o)
+
+    if not psbt_v2:
+        psbt.txn = txn.serialize_with_witness()
 
     rv = BytesIO()
     psbt.serialize(rv)
@@ -247,22 +339,20 @@ def make_ms_address(M, keys, idx, is_change, addr_fmt="p2wsh", testnet=1, bip67=
 
 
 def fake_ms_txn(num_ins, num_outs, M, keys, fee=10000, outvals=None, segwit_in=True,
-                outstyles=['p2wsh'], change_outputs=[], incl_xpubs=False,
-                input_amount=1E8, bip67=True, locktime=0, testnet=False):
+                outstyles=['p2wsh'], change_outputs=[], incl_xpubs=False, psbt_v2=False,
+                input_amount=1E8, bip67=True, locktime=0, wrapped=False,
+                sequences=None, is_testnet=False, change_af=None):
     # make various size MULTISIG txn's ... completely fake and pointless values
     # - but has UTXO's to match needs
+    # spending change outputs
     psbt = BasicPSBT()
-    # if psbt_v2 is None:
-    #     # anything passed directly to this function overrides
-    #     # pytest flag --psbt2 - only care about pytest flag
-    #     # if psbt_v2 is not specified (None)
-    #     psbt_v2 = pytestconfig.getoption('psbt2')
-    #
-    # if psbt_v2:
-    #     psbt.version = 2
-    #     psbt.txn_version = 2
-    #     psbt.input_count = num_ins
-    #     psbt.output_count = num_outs
+
+    if psbt_v2:
+        psbt.version = 2
+        psbt.txn_version = 2
+        psbt.input_count = num_ins
+        psbt.output_count = num_outs
+        psbt.fallback_locktime = locktime
 
     txn = CTransaction()
     txn.nVersion = 2
@@ -282,10 +372,10 @@ def fake_ms_txn(num_ins, num_outs, M, keys, fee=10000, outvals=None, segwit_in=T
         # - each input is 1BTC
 
         # addr where the fake money will be stored.
+        # always same address format as config defines
         addr, scriptPubKey, script, details = make_ms_address(M, keys, i, True,
-                                                              addr_fmt="p2wsh" if segwit_in else "p2sh",
+                                                              addr_fmt=change_af,
                                                               bip67=bip67)
-
         # lots of supporting details needed for p2sh inputs
         if segwit_in:
             psbt.inputs[i].witness_script = script
@@ -312,53 +402,72 @@ def fake_ms_txn(num_ins, num_outs, M, keys, fee=10000, outvals=None, segwit_in=T
             psbt.inputs[i].witness_utxo = supply.vout[-1].serialize()
 
         supply.calc_sha256()
-        # if psbt_v2:
-        #     psbt.inputs[i].previous_txid = supply.hash
-        #     psbt.inputs[i].prevout_idx = 0
-        #     # TODO sequence
-        #     # TODO height timelock
-        #     # TODO time timelock
 
-        seq = 0xffffffff
-        if (i == 0) and locktime:
-            # need to decrement at least one for locktime to work
-            seq -= 1
+        seq = None
+        if sequences:
+            # custom provided properly encoded sequence numbers
+            try:
+                seq = sequences[i]
+            except: pass
+
+        if seq is None:
+            seq = 0xffffffff
+            if locktime and (i == 0):
+                # decrement one sequence to enable nLockTime enforcement
+                # only on 0th input
+                seq = 0xfffffffe
+
+        if psbt_v2:
+            psbt.inputs[i].previous_txid = supply.hash
+            psbt.inputs[i].prevout_idx = 0
+            psbt.inputs[i].sequence = seq
+            if locktime:
+                # no need to do this as fallback locktime is already set in globals but yolo
+                if locktime < 500000000:
+                    psbt.inputs[i].req_height_locktime = locktime
+                else:
+                    psbt.inputs[i].req_time_locktime = locktime
+
         spendable = CTxIn(COutPoint(supply.sha256, 0), nSequence=seq)
         txn.vin.append(spendable)
 
     outputs = []
     for i in range(num_outs):
-        if not outstyles:
-            style = ADDR_STYLES_MULTI[i % len(ADDR_STYLES_MULTI)]
-        elif len(outstyles) == num_outs:
-            style = outstyles[i]
-        else:
-            style = outstyles[i % len(outstyles)]
-
         if i in change_outputs:
+            # change outputs are always same as multisig address format
             addr, scriptPubKey, scr, details = make_ms_address(M, keys, num_ins+i, False,
-                                                               addr_fmt=style, bip67=bip67)
+                                                               addr_fmt=change_af, bip67=bip67)
 
             for pubkey, xfp_path in details:
                 psbt.outputs[i].bip32_paths[pubkey] = xfp_path
 
-            if 'w' in style:
+            if 'w' in change_af:
                 psbt.outputs[i].witness_script = scr
-                if style.endswith('p2sh'):
+                if change_af.endswith('p2sh'):
                     psbt.outputs[i].redeem_script = b'\0\x20' + hashlib.sha256(scr).digest()
-            elif style.endswith('sh'):
+            elif change_af.endswith('sh'):
                 psbt.outputs[i].redeem_script = scr
         else:
+            if not outstyles:
+                # make same outstyles as instyles
+                style = change_af
+            elif len(outstyles) == 1:
+                style = outstyles[0]
+            elif len(outstyles) == num_outs:
+                style = outstyles[i-len(change_outputs)]
+            else:
+                style = outstyles[(i-len(change_outputs)) % len(outstyles)]
+
             scriptPubKey = fake_dest_addr(style)
 
         assert scriptPubKey
 
-        # if psbt_v2:
-        #     psbt.outputs[i].script = scriptPubKey
-        #     if outvals:
-        #         psbt.outputs[i].amount = outvals[i]
-        #     else:
-        #         psbt.outputs[i].amount = int(round(((input_amount * num_ins) - fee) / num_outs, 4))
+        if psbt_v2:
+            psbt.outputs[i].script = scriptPubKey
+            if outvals:
+                psbt.outputs[i].amount = outvals[i]
+            else:
+                psbt.outputs[i].amount = int(round(((input_amount * num_ins) - fee) / num_outs, 4))
 
 
         if not outvals:
@@ -368,15 +477,15 @@ def fake_ms_txn(num_ins, num_outs, M, keys, fee=10000, outvals=None, segwit_in=T
 
         txn.vout.append(h)
 
-        # TODO FIXME #
-        #XXX#outputs.append( (Decimal(h.nValue)/Decimal(1E8), scr, (i not in change_outputs)) )
+        outputs.append((h.nValue, scriptPubKey, (i in change_outputs)))
 
-    psbt.txn = txn.serialize_with_witness()
+    if not psbt_v2:
+        psbt.txn = txn.serialize_with_witness()
 
     rv = BytesIO()
     psbt.serialize(rv)
 
-    return rv.getvalue(), [(n, render_address(s, testnet), ic) for n,s,ic in outputs]
+    return rv.getvalue(), [(n, render_address(s, is_testnet), ic) for n,s,ic in outputs]
 
 def render_address(script, testnet=True):
     # take a scriptPubKey (part of the TxOut) and convert into conventional human-readable
@@ -389,12 +498,10 @@ def render_address(script, testnet=True):
         bech32_hrp = 'bc'
         b58_addr    = bytes([0])
         b58_script  = bytes([5])
-        b58_privkey = bytes([128])
     else:
         bech32_hrp = 'tb'
         b58_addr    = bytes([111])
         b58_script  = bytes([196])
-        b58_privkey = bytes([239])
 
     # P2PKH
     if ll == 25 and script[0:3] == b'\x76\xA9\x14' and script[23:26] == b'\x88\xAC':
@@ -404,13 +511,13 @@ def render_address(script, testnet=True):
     if ll == 23 and script[0:2] == b'\xA9\x14' and script[22] == 0x87:
         return encode_base58_checksum(b58_script + script[2:2+20])
 
-    # P2WPKH
-    if ll == 22 and script[0:2] == b'\x00\x14':
-        return bech32_encode(bech32_hrp, 0, script[2:])
-
-    # P2WSH, P2TR and later
-    if ll == 34 and script[0] <= 16 and script[1] == 0x20:
+    # segwit v0 (P2WPKH, P2WSH)
+    if script[0] == 0 and script[1] in (0x14, 0x20) and (ll - 2) == script[1]:
         return bech32_encode(bech32_hrp, script[0], script[2:])
+
+    # segwit v1 (P2TR) and later segwit version OP_1 .. OP_16
+    if ll == 34 and (81 <= script[0] <= 96) and script[1] == 0x20:
+        return bech32_encode(bech32_hrp, script[0] - 80, script[2:])
 
     raise ValueError('Unknown payment script', repr(script))
 
