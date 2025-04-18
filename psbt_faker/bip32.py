@@ -2,7 +2,6 @@
 #
 import hashlib, hmac
 from typing import Union
-from .segwit_addr import encode as bech32_encode
 from io import BytesIO
 try:
     from pysecp256k1 import (
@@ -17,9 +16,9 @@ except ImportError:
     FIELD_ORDER = SECP256k1.curve.p()
     INFINITY = ecdsa.ellipticcurve.INFINITY
 
+from .segwit_addr import encode as bech32_encode
 from .base58 import encode_base58_checksum, decode_base58_checksum
-from .ripemd import hash160
-from .helpers import str2ipath
+from .helpers import str2ipath, hash160
 
 HARDENED = 2 ** 31
 

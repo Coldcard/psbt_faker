@@ -3,7 +3,7 @@
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 """Test-only pure Python RIPEMD160 implementation."""
 
-import unittest, hashlib
+import unittest
 
 # Message schedule indexes for the left path.
 ML = [
@@ -107,10 +107,6 @@ def ripemd160(data):
         state = compress(*state, fin[64*b:64*(b+1)])
     # Produce output.
     return b"".join((h & 0xffffffff).to_bytes(4, 'little') for h in state)
-
-
-def hash160(data):
-    return ripemd160(hashlib.sha256(data).digest())
 
 
 class TestFrameworkKey(unittest.TestCase):

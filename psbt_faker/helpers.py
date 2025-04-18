@@ -1,4 +1,5 @@
-import struct
+import struct, hashlib
+from .ripemd import ripemd160
 
 def str2ipath(s):
     # convert text to numeric path for BIP174
@@ -24,3 +25,6 @@ def str2path(xfp, s):
     # output binary needed for BIP-174
     p = list(str2ipath(s))
     return bytes.fromhex(xfp) + struct.pack('<%dI' % (len(p)), *p)
+
+def hash160(data):
+    return ripemd160(hashlib.sha256(data).digest())
