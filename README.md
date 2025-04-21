@@ -35,7 +35,7 @@ Options:
   -c, --num-change INTEGER        Number of change outputs (default 1) from
                                   num-outs
   -f, --fee INTEGER               Miner's fee in Satoshis
-  --psbt2                         Make PSBTv2
+  -2, --psbt2                     Make PSBTv2
   -s, --segwit                    Make inputs be segwit style
   -w, --wrapped                   Make inputs be wrapped segwit style
                                   (requires --segwit flag)
@@ -50,12 +50,12 @@ Options:
   -z, --zero-xfp                  [SS] Provide zero XFP and junk XPUB (cannot
                                   be signed, but should be decodable)
   -m, --multisig config.txt       [MS] CC Multisig config file (text)
-  -l, --locktime INTEGER          nLocktime value (default 0), use 'current'
+  -l, --locktime TEXT             nLocktime value (default 0), use 'current'
                                   to fetch best block height from
                                   mempool.space
   -n, --input-amount INTEGER      Size of each input in sats (default 100k
                                   sats each input)
-  --incl-xpubs                    [MS] Include XPUBs in PSBT global section
+  -I, --incl-xpubs                [MS] Include XPUBs in PSBT global section
   --help                          Show this message and exit.
 ```
 

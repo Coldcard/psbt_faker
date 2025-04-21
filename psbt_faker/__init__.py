@@ -27,7 +27,7 @@ SIM_XPUB = 'tpubD6NzVbkrYhZ4XzL5Dhayo67Gorv1YMS7j8pRUvVMd5odC2LBPLAygka9p7748JtS
 @click.option('--num-outs', '-o', help="Number of all txn outputs (default 2)", default=2)
 @click.option('--num-change', '-c', help="Number of change outputs (default 1) from num-outs", default=1)
 @click.option('--fee', '-f', help="Miner's fee in Satoshis", default=1000)
-@click.option('--psbt2', help="Make PSBTv2", is_flag=True, default=False)
+@click.option('--psbt2', '-2', help="Make PSBTv2", is_flag=True, default=False)
 @click.option('--segwit', '-s', help="Make inputs be segwit style", is_flag=True, default=False)
 @click.option('--wrapped', '-w', help="Make inputs be wrapped segwit style (requires --segwit flag)", is_flag=True, default=False)
 @click.option('--styles', '-a',  help="Output address style (multiple ok). If multisig only applies to non-change addresses.", multiple=True, default=None, type=click.Choice(ADDR_STYLES))
@@ -38,7 +38,7 @@ SIM_XPUB = 'tpubD6NzVbkrYhZ4XzL5Dhayo67Gorv1YMS7j8pRUvVMd5odC2LBPLAygka9p7748JtS
 @click.option('--multisig', '-m', type=click.File('rt'), metavar="config.txt", help="[MS] CC Multisig config file (text)", default=None)
 @click.option('--locktime', '-l', help="nLocktime value (default 0), use 'current' to fetch best block height from mempool.space", default="0")
 @click.option('--input-amount', '-n', help="Size of each input in sats (default 100k sats each input)", default=100000)
-@click.option('--incl-xpubs', help="[MS] Include XPUBs in PSBT global section", is_flag=True, default=False)
+@click.option('--incl-xpubs', '-I',  help="[MS] Include XPUBs in PSBT global section", is_flag=True, default=False)
 def main(num_ins, num_change, num_outs, out_psbt, testnet, xpub, segwit, fee, styles, base64,
          partial, zero_xfp, multisig, locktime, input_amount, psbt2, incl_xpubs, wrapped):
     '''Construct a valid PSBT which spends non-existant BTC to random addresses!'''
