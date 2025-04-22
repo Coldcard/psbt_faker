@@ -35,7 +35,8 @@ def fake_dest_addr(style='p2pkh'):
         return bytes([0, 32]) + prandom(32)
 
     if style == 'p2tr':
-        return bytes([1, 32]) + prandom(32)
+        # OP_1 = int(81)
+        return bytes([81, 32]) + prandom(32)
 
     if style in ['p2sh', 'p2wsh-p2sh', 'p2wpkh-p2sh', 'p2sh-p2wsh', 'p2sh-p2wpkh']:
         # all equally bogus P2SH outputs
@@ -78,10 +79,54 @@ def make_change_addr(master_xfp, orig_der,  account_key, idx, style):
     return redeem_scr, actual_scr, is_segwit, dest.sec(), path
 
 
-def fake_txn(num_ins, num_outs, master_xpub=None, subpath="0/%d", fee=10000,
+def fake_txn(num_ins, num_outs, master_xpub=None, fee=10000,
          outvals=None, segwit_in=False, wrapped=False, outstyles=None,
          change_outputs=[], op_return=None, psbt_v2=None, input_amount=1E8,
          locktime=0, sequences=None, is_testnet=False, partial=False):
+
+    af = ("p2sh-p2wpkh" if wrapped else "p2wpkh") if segwit_in else "p2pkh"
+
+    # we have a key; use it to provide "plausible" value inputs
+    orig_der = None
+    if master_xpub:
+        master_xpub = master_xpub.strip()  # annoying whitespaces
+        key_orig_info = None
+        close_idx = master_xpub.find("]")
+        if master_xpub[0] == "[" and (close_idx != -1):
+            # key has origin derivation public - parse
+            key_orig_info = master_xpub[1:close_idx]
+            master_xpub = master_xpub[close_idx + 1:]
+
+        account_key = BIP32Node.from_wallet_key(master_xpub)
+        if key_orig_info:
+            split_der = key_orig_info.split("/", 1)
+            if len(split_der) == 1:
+                str_xfp = split_der[0]
+                orig_der = None
+            else:
+                str_xfp, orig_der = split_der
+
+            xfp = bytes.fromhex(str_xfp)
+
+        else:
+            xfp = account_key.fingerprint()
+            try:
+                assert account_key.privkey() is not None
+                # user provided extended private key, we can simulate proper hardened derivations
+                if af == "p2wpkh":
+                    purpose = 84
+                elif af == "p2sh-p2wpkh":
+                    purpose = 49
+                else:
+                    purpose = 44
+
+                orig_der = f"{purpose}h/{int(is_testnet)}h/0h"
+                account_key = account_key.subkey_for_path(orig_der)
+            except: pass
+    else:
+        # special value for COLDCARD: zero xfp => anyone can try to sign
+        account_key = BIP32Node.from_master_secret(b'1' * 32)
+        xfp = bytes(4)
 
     psbt = BasicPSBT()
 
@@ -96,39 +141,10 @@ def fake_txn(num_ins, num_outs, master_xpub=None, subpath="0/%d", fee=10000,
     txn.nVersion = 2
     txn.nLockTime = locktime
 
-    # we have a key; use it to provide "plausible" value inputs
-    if master_xpub:
-        mk = BIP32Node.from_wallet_key(master_xpub)
-        xfp = mk.fingerprint()
-    else:
-        # special value for COLDCARD: zero xfp => anyone can try to sign
-        mk = BIP32Node.from_master_secret(b'1' * 32)
-        xfp = bytes(4)
-
     psbt.inputs = [BasicPSBTInput(idx=i) for i in range(num_ins)]
     psbt.outputs = [BasicPSBTOutput(idx=i) for i in range(num_outs)]
 
     outputs = []
-
-    assert subpath[0:2] == '0/'
-
-    af = ("p2sh-p2wpkh" if wrapped else "p2wpkh") if segwit_in else "p2pkh"
-    try:
-        assert mk.privkey() is not None
-        # user provided extended private key, we can simulate proper hardened derivations
-        if af == "p2wpkh":
-            purpose = 84
-        elif af == "p2sh-p2wpkh":
-            purpose = 49
-        else:
-            purpose = 44
-
-        orig_der = f"{purpose}h/{int(is_testnet)}h/0h"
-        account_key = mk.subkey_for_path(orig_der)
-    except:
-        # we cannot proceed to hardened derivation as we only have extended pubkey
-        account_key = mk
-        orig_der = None
 
     for i in range(num_ins):
         # make a fake txn to supply each of the inputs
@@ -219,7 +235,7 @@ def fake_txn(num_ins, num_outs, master_xpub=None, subpath="0/%d", fee=10000,
             style = outstyles[i % len(outstyles)]
 
         if i in change_outputs:
-            scr, act_scr, isw, pubkey, sp = make_change_addr(mk.fingerprint().hex(), orig_der,
+            scr, act_scr, isw, pubkey, sp = make_change_addr(xfp.hex(), orig_der,
                                                              account_key, i, style)
 
             if len(pubkey) == 32:  # xonly

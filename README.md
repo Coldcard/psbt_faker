@@ -9,7 +9,7 @@ You should use the XPUB of the Coldcard you want experiment against.
 This can be retrieved using `ckcc xpub` with the `ckcc-protocol`
 CLI tool, or by exporting the wallet (see Advanced > MicroSD > Export Wallet menu).
 
-For the Coldcard Simulator, you could use `tpubD6NzVbkrYhZ4XzL5Dhayo67Gorv1YMS7j8pRUvVMd5odC2LBPLAygka9p7748JtSq82FNGPppFEz5xxZUdasBRCqJqXvUHq6xpnsMcYJzeh`
+For the Coldcard Simulator, you could use `tpubD6NzVbkrYhZ4XzL5Dhayo67Gorv1YMS7j8pRUvVMd5odC2LBPLAygka9p7748JtSq82FNGPppFEz5xxZUdasBRCqJqXvUHq6xpnsMcYJzeh` which is also default.
 
 ## Installation
 
@@ -207,5 +207,30 @@ Fake PSBT would send 3 BTC to:
  0.29999900 => 38hJkV67aF6mX2Q6GGepGV8JModVs4k4VL 
  0.29999900 => 3L8uS7WF2K1Qbp3s8321zdZEpHJRo2KB2Z 
  0.29999900 => 3Euxvk1HcejZBc8VySTHp6icgieP4m2k7s 
+ 0.00001000 => miners fee
+ 
+ 
+# extended private key can be used instead of extended public key XPUB for signle-sig PSBTs
+# proper BIP-44 derivation path from master used in that case
+XPRV=tprv8ZgxMBicQKsPeXJHL3vPPgTAEqQ5P2FD9qDeCQT4Cp1EMY5QkwMPWFxHdxHrxZhhcVRJ2m7BNWTz9Xre68y7mX5vCdMJ5qXMUfnrZ2si2X4
+
+psbt_faker foo.psbt $XPRV -i 2  -o 2 -n 50000000 --locktime 899000 -s -w -6
+
+Fake PSBT would send 1 BTC to: 
+ 0.49999500 => 36q7XpzinU7hM7eDaF37fBKV4sz73MPsfq  (change back)
+ 0.49999500 => 38q4ecMQt33o6HP1kh1dZJ6CdRcUUAdftd 
+ 0.00001000 => miners fee
+ 
+ 
+# or use extended public key with key origin info to have "deeper" derivations in PSBT
+# no validation is run against the xpub
+XPUB='[0F056943/84h/1h/0h]tpubDC7jGaaSE66Pn4dgtbAAstde4bCyhSUs4r3P8WhMVvPByvcRrzrwqSvpF9Ghx83Z1LfVugGRrSBko5UEKELCz9HoMv5qKmGq3fqnnbS5E9r'
+
+psbt_faker foo.psbt $XPUB -i 3  -o 3 -c 2 -n 50000000 --locktime current -s -6
+
+Fake PSBT would send 1.5 BTC to: 
+ 0.49999666 => bc1qupyd58ndsh7lut0et0vtrq432jvu9jtdwgtkgk  (change back)
+ 0.49999666 => bc1qceytj4vfrg22cy7mp5mnfps4ffgseas20ak7fj  (change back)
+ 0.49999666 => bc1qj55nlp4ntq35sklzgq34pr0ujz2muuws5nrvrg 
  0.00001000 => miners fee
 ```
