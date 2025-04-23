@@ -28,8 +28,8 @@ SIM_XPUB = 'tpubD6NzVbkrYhZ4XzL5Dhayo67Gorv1YMS7j8pRUvVMd5odC2LBPLAygka9p7748JtS
 @click.option('--num-change', '-c', help="Number of change outputs (default 1) from num-outs", default=1)
 @click.option('--fee', '-f', help="Miner's fee in Satoshis", default=1000)
 @click.option('--psbt2', '-2', help="Make PSBTv2", is_flag=True, default=False)
-@click.option('--segwit', '-s', help="Make inputs be segwit style", is_flag=True, default=False)
-@click.option('--wrapped', '-w', help="Make inputs be wrapped segwit style (requires --segwit flag)", is_flag=True, default=False)
+@click.option('--segwit', '-s', help="[SS] Make inputs be segwit style", is_flag=True, default=False)
+@click.option('--wrapped', '-w', help="[SS] Make inputs be wrapped segwit style (requires --segwit flag)", is_flag=True, default=False)
 @click.option('--styles', '-a',  help="Output address style (multiple ok). If multisig only applies to non-change addresses.", multiple=True, default=None, type=click.Choice(ADDR_STYLES))
 @click.option('--base64', '-6', help="Output base64 (default binary)", is_flag=True, default=False)
 @click.option('--testnet', '-t', help="Assume testnet4 addresses (default mainnet)", is_flag=True, default=False)
@@ -58,9 +58,8 @@ def main(num_ins, num_change, num_outs, out_psbt, testnet, xpub, segwit, fee, st
         name, af, keys, M, N = from_simple_text(ms_config.split("\n"))
         psbt, outs = fake_ms_txn(num_ins, num_outs, M, keys, fee=fee, locktime=locktime,
                                  change_outputs=list(range(num_change)), outstyles=styles,
-                                 segwit_in=segwit, input_amount=input_amount, psbt_v2=psbt2,
-                                 incl_xpubs=incl_xpubs, wrapped=wrapped, is_testnet=testnet,
-                                 change_af=af)
+                                 input_amount=input_amount, psbt_v2=psbt2, change_af=af,
+                                 incl_xpubs=incl_xpubs, is_testnet=testnet)
     else:
         if zero_xfp:
             xpub = None

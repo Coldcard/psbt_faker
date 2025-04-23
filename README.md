@@ -36,8 +36,8 @@ Options:
                                   num-outs
   -f, --fee INTEGER               Miner's fee in Satoshis
   -2, --psbt2                     Make PSBTv2
-  -s, --segwit                    Make inputs be segwit style
-  -w, --wrapped                   Make inputs be wrapped segwit style
+  -s, --segwit                    [SS] Make inputs be segwit style
+  -w, --wrapped                   [SS] Make inputs be wrapped segwit style
                                   (requires --segwit flag)
   -a, --styles [p2wsh|p2sh|p2sh-p2wsh|p2wsh-p2sh|p2wpkh|p2pkh|p2wpkh-p2sh|p2sh-p2wpkh|p2tr]
                                   Output address style (multiple ok). If

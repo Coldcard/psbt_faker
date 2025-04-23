@@ -354,9 +354,9 @@ def make_ms_address(M, keys, idx, is_change, addr_fmt="p2wsh", testnet=1, bip67=
     return addr, scriptPubKey, script, bip32paths
 
 
-def fake_ms_txn(num_ins, num_outs, M, keys, fee=10000, outvals=None, segwit_in=True,
-                outstyles=['p2wsh'], change_outputs=[], incl_xpubs=False, psbt_v2=False,
-                input_amount=1E8, bip67=True, locktime=0, wrapped=False,
+def fake_ms_txn(num_ins, num_outs, M, keys, fee=10000, outvals=None,
+                outstyles=['p2wsh'], change_outputs=[], incl_xpubs=False,
+                input_amount=1E8, bip67=True, locktime=0, psbt_v2=False,
                 sequences=None, is_testnet=False, change_af=None):
     # make various size MULTISIG txn's ... completely fake and pointless values
     # - but has UTXO's to match needs
@@ -392,10 +392,10 @@ def fake_ms_txn(num_ins, num_outs, M, keys, fee=10000, outvals=None, segwit_in=T
         addr, scriptPubKey, script, details = make_ms_address(M, keys, i, True,
                                                               addr_fmt=change_af,
                                                               bip67=bip67)
-        # lots of supporting details needed for p2sh inputs
-        if segwit_in:
+        if "p2wsh" in change_af:
             psbt.inputs[i].witness_script = script
-        else:
+
+        if "p2sh" in change_af:
             psbt.inputs[i].redeem_script = script
 
         for pubkey, xfp_path in details:
@@ -412,7 +412,7 @@ def fake_ms_txn(num_ins, num_outs, M, keys, fee=10000, outvals=None, segwit_in=T
 
         supply.vout.append(CTxOut(int(input_amount), scriptPubKey))
 
-        if not segwit_in:
+        if "wsh" in change_af:
             psbt.inputs[i].utxo = supply.serialize_with_witness()
         else:
             psbt.inputs[i].witness_utxo = supply.vout[-1].serialize()
