@@ -25,8 +25,11 @@ if __name__ == '__main__':
         py_modules=['psbt_faker'],
         python_requires='>3.6.0',
         install_requires=[
-            'Click',
-            'ecdsa',
+            "click>=6.7",
+            "ecdsa",
+            "pyqrcode",
+            "Pillow",
+            "bbqr @ git+https://github.com/coinkite/BBQr.git@master#subdirectory=python",
         ],
         entry_points='''
             [console_scripts]

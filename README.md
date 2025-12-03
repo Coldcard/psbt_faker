@@ -40,6 +40,7 @@ Options:
                                   num-outs
   -f, --fee INTEGER               Miner's fee in Satoshis
   -2, --psbt2                     Make PSBTv2
+  -b, --bbqr                      Output BBQr OUTPUT.gif in CWD
   -s, --segwit                    [SS] Make inputs be segwit style
   -w, --wrapped                   [SS] Make inputs be wrapped segwit style
                                   (requires --segwit flag)

@@ -1,3 +1,8 @@
 click>=6.7
 ecdsa
 # or can use python-secp256k1
+
+# BBQr library
+git+https://github.com/coinkite/BBQr.git@master#egg=bbqr&subdirectory=python
+pyqrcode
+Pillow
